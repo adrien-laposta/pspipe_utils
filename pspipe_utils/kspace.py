@@ -3,6 +3,7 @@ Some utility functions for the kspace filter.
 """
 from pspy import so_spectra
 import numpy as np
+from pixell import enmap
 
 def build_kspace_filter_matrix(lb, ps_sims, n_sims, spectra, return_dict=False):
 
@@ -12,12 +13,12 @@ def build_kspace_filter_matrix(lb, ps_sims, n_sims, spectra, return_dict=False):
     We will use the inverse of the matrix to remove the biais from the kspace filter.
     the elements that we estimate explicitely are
      "TT_to_TT", "EE_to_EE", "BB_to_BB", "EE_to_BB", "BB_to_EE"
-     
+
      ps_filt_x = \sum_y x_to_y ps_unfilt_y
-     
+
      we then set "TE_to_TE", "ET_to_ET", "TB_to_TB", "BT_to_BT" to sqrt(TT_to_TT * EE_to_EE)
      and "EB_to_EB", "BE_to_BE" to "EE_to_EE"
-     
+
     Parameters
     ----------
     lb : 1d array
@@ -44,18 +45,18 @@ def build_kspace_filter_matrix(lb, ps_sims, n_sims, spectra, return_dict=False):
     for spec1 in spectra:
         for spec2 in spectra:
             kspace_dict[f"{spec1}_to_{spec2}"] = np.zeros(n_bins)
-        
+
     elements = ["TT_to_TT", "EE_to_EE", "BB_to_BB", "EE_to_BB", "BB_to_EE"]
     for el in elements: kspace_dict[el] = []
     for i in range(n_sims):
         kspace_dict["TT_to_TT"] += [ps_sims["filter", "standard"][i]["TT"]/ps_sims["nofilter", "standard"][i]["TT"]]
-        
+
         kspace_dict["EE_to_EE"] += [ps_sims["filter", "noB"][i]["EE"]/ps_sims["nofilter", "noB"][i]["EE"]]
         kspace_dict["BB_to_BB"] += [ps_sims["filter", "noE"][i]["BB"]/ps_sims["nofilter", "noE"][i]["BB"]]
-        
+
         kspace_dict["EE_to_BB"] += [ps_sims["filter", "noB"][i]["BB"]/ps_sims["nofilter", "noB"][i]["EE"]]
         kspace_dict["BB_to_EE"] += [ps_sims["filter", "noE"][i]["EE"]/ps_sims["nofilter", "noE"][i]["BB"]]
- 
+
     for el in elements:
         std[el] = np.std(kspace_dict[el], axis=0)
         kspace_dict[el] = np.mean(kspace_dict[el], axis=0)
@@ -63,7 +64,7 @@ def build_kspace_filter_matrix(lb, ps_sims, n_sims, spectra, return_dict=False):
     elements = ["TE_to_TE", "ET_to_ET", "TB_to_TB", "BT_to_BT"]
     for el in elements:
         kspace_dict[el] = np.sqrt(kspace_dict["TT_to_TT"] * kspace_dict["EE_to_EE"])
-        
+
     elements = ["EB_to_EB", "BE_to_BE"]
     for el in elements:
         kspace_dict[el] = kspace_dict["EE_to_EE"]
@@ -83,13 +84,13 @@ def deconvolve_kspace_filter_matrix(lb, ps, kspace_filter_matrix, spectra):
 
 
     """This function deconvolve the kspace filter transfer matrix
-     
+
      since
      ps_filt_x = \sum_y M_{x_to_y} ps_unfilt_y
      we have
      ps_unfilt_x = \sum_y (M)**-1_{x_to_y} ps_filt_y
-     
-     
+
+
     Parameters
     ----------
     lb : 1d array
@@ -115,3 +116,22 @@ def deconvolve_kspace_filter_matrix(lb, ps, kspace_filter_matrix, spectra):
     ps = so_spectra.vec2spec_dict(n_bins, vec, spectra)
 
     return lb, ps
+
+def fourier_mult(orig_map, binary, fourier_array):
+
+    """do a fourier multiplication of the FFT of the orig_map with a fourier array, binary help to remove pathological pixels
+    Parameters
+    ---------
+    orig_map: ``so_map``
+        the map to be filtered
+    binary:  ``so_map``
+        a binary mask removing pathological pixels
+    fourier_array: 2d array
+        the fourier array we want to multiply the FFT of the map with
+    """
+    orig_map.data *= binary.data
+    ft = enmap.fft(orig_map.data, normalize=True)
+    ft  *= fourier_array
+    orig_map.data = enmap.ifft(ft, normalize=True).real
+
+    return orig_map
