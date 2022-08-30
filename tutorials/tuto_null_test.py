@@ -2,12 +2,11 @@ from pspy import pspy_utils, so_map, so_spectra, so_window, so_mcm, so_cov, sph_
 from pspipe_utils import simulation, consistency, best_fits
 from itertools import combinations
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 from pixell import curvedsky
+import matplotlib as mpl
 import numpy as np
 import pickle
 import time
-import sys
 
 # Output dir
 output_dir = "result_nulls"
@@ -23,19 +22,26 @@ modes = ["TT", "TE", "ET", "EE"]
 type = "Dl"
 niter = 0
 
-surveys = ["sv1", "sv2"]
-arrays = {"sv1": ["ar1"],
-          "sv2": ["ar1"]}
-n_splits = {"sv1": 2,
-            "sv2": 2}
+surveys = ["sv1"]
+arrays = {"sv1": ["ar1", "ar2"]}
+
+n_splits = {"sv1": 2}
 
 ra0, ra1, dec0, dec1, res = -30, 30, -10, 10, 3
-apo_type_survey = "Rectangle"
+apo_type_survey = "C2"
 template = so_map.car_template(ncomp, ra0, ra1, dec0, dec1, res)
 binary = so_map.car_template(1, ra0, ra1, dec0, dec1, res)
 
-binary.data[:] = 0
-binary.data[1:-1, 1:-1] = 1
+binaries = {("sv1", "ar1"): binary,
+            ("sv1", "ar2"): binary.copy()}
+
+nx, ny = binary.data.shape
+
+binaries["sv1", "ar1"].data[:] = 0
+binaries["sv1", "ar1"].data[1:-1, 1:-1] = 1
+
+binaries["sv1", "ar2"].data[:] = 0
+binaries["sv1", "ar2"].data[nx//4:-nx//4, ny//4:-ny//4] = 1
 
 lmax = 1400
 lmax_sim = lmax + 1000
@@ -74,10 +80,10 @@ for sv in surveys:
     fwhm_min, fwhm_max = fwhm_range
 
     for ar in arrays[sv]:
-        if sv == "sv1":
+        if ar == "ar1":
             nu_eff[sv, ar] = np.random.randint(80, high=240)
         else:
-            nu_eff[sv, ar] = nu_eff["sv1", ar]
+            nu_eff[sv, ar] = nu_eff[sv, "ar1"]
 
         rms_uKarcmin_T[sv, f"{ar}x{ar}"] = np.random.uniform(rms_min, high=rms_max)
         freq_list += [nu_eff[sv, ar]]
@@ -136,7 +142,8 @@ for f1 in freq_list:
 window = {}
 for sv in surveys:
     for ar in arrays[sv]:
-        window[sv, ar] = so_window.create_apodization(binary, apo_type=apo_type_survey,
+        window[sv, ar] = so_window.create_apodization(binaries[sv, ar],
+                                                      apo_type=apo_type_survey,
                                                       apo_radius_degree = 1)
         window[sv, ar].plot(file_name = f"{output_dir}/window_{sv}_{ar}")
 
@@ -197,7 +204,7 @@ print("==============")
 print("= SIMULATION =")
 print("==============\n")
 
-n_sims = 20
+n_sims = 250
 ps_all = {}
 for iii in range(n_sims):
     t = time.time()
@@ -351,8 +358,8 @@ for i, ps1 in enumerate(spec_name_list):
         an_cov_dict[(na, nb), (nc, nd)] = analytic_cov
 
 ps_order = [("sv1&ar1", "sv1&ar1"),
-            ("sv1&ar1", "sv2&ar1"),
-            ("sv2&ar1", "sv2&ar1")]
+            ("sv1&ar1", "sv1&ar2"),
+            ("sv1&ar2", "sv1&ar2")]
 
 proj_dict = {
              "C1": np.array([1, -1, 0]),
@@ -412,14 +419,14 @@ for mode in modes:
         plt.plot(lb, mc_err, label = comb, ls = linestyles["mc"], color = colors[comb])
         plt.plot(lb, an_err, label = comb, ls = linestyles["an"], color = colors[comb])
 
-    dummy_lines = []
+    tmp_lines = []
     for ls in linestyles.values():
-        dummy_lines.append(plt.gca().plot([], [], c = "k", ls = ls)[0])
+        tmp_lines.append(plt.gca().plot([], [], c = "k", ls = ls)[0])
     lines, labels = plt.gca().get_legend_handles_labels()
     legend_color = plt.legend([lines[i] for i in range(len(lines)) if i % 2 == 1],
                               [labels[i] for i in range(len(lines)) if i % 2 == 1],
                               loc = "upper left")
-    legend_ls = plt.legend([dummy_lines[i] for i in range(len(dummy_lines))],
+    legend_ls = plt.legend([tmp_lines[i] for i in range(len(tmp_lines))],
                            ["MC", "AN"], loc = "upper right")
 
     plt.gca().add_artist(legend_color)
