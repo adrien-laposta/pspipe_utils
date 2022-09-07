@@ -76,8 +76,8 @@ def fit_tf(lb, tf_est, tf_cov, prior_dict, chain_name, method = "logistic"):
             "sampler": {
                 "mcmc": {
                     "max_tries": 1e8,
-                    "Rminus1_stop": 0.005,
-                    "Rminus1_cl_stop": 0.05}},
+                    "Rminus1_stop": 0.001,
+                    "Rminus1_cl_stop": 0.03}},
             "output": chain_name,
             "force": True
             }
@@ -101,7 +101,7 @@ def get_tf_bestfit(ell, chain_name, method = "logistic"):
 
     return tf
 
-def plot_tf(lb_list, tf_list, tf_err_list, titles, plot_file, ell = None, tf_model_list = None):
+def plot_tf(lb_list, tf_list, tf_err_list, titles, plot_file, ell_list = None, tf_model_list = None):
 
     n = len(tf_list)
     fig, axes = plt.subplots(2, 3, sharey = True, figsize = (16, 9))
@@ -115,7 +115,7 @@ def plot_tf(lb_list, tf_list, tf_err_list, titles, plot_file, ell = None, tf_mod
 
         ax.axhline(1, color = "k", ls = "--", lw = 0.8)
         if tf_model_list is not None:
-            ax.plot(ell, tf_model_list[i], color = "gray")
+            ax.plot(ell_list[i], tf_model_list[i], color = "gray")
         ax.errorbar(lb_list[i], tf_list[i], yerr = tf_err_list[i], marker = ".",
                     capsize = 1, elinewidth = 1.1, ls = "None", color = "tab:red")
         ax.set_title(titles[i])

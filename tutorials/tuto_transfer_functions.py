@@ -93,7 +93,6 @@ for sv in surveys:
             plt.figure()
             plt.plot(ell_tf, tf_dict[sv, ar])
             plt.show()
-            print(bb, cc)
         else:
             nu_eff[sv, ar] = nu_eff["sv1", ar]
             tf_dict[sv, ar] = np.ones(ell_tf.shape)
@@ -216,7 +215,7 @@ print("==============")
 print("= SIMULATION =")
 print("==============\n")
 
-n_sims = 50
+n_sims = 15
 ps_all = {}
 for iii in range(n_sims):
     t = time.time()
@@ -344,10 +343,21 @@ for i, ps1 in enumerate(spec_name_list):
         mbb_inv_ab = mbb_inv_dict[sv_a, ar_a, sv_b, ar_b]
         mbb_inv_cd = mbb_inv_dict[sv_c, ar_c, sv_d, ar_d]
 
+        # Correct for the TF ~ test
+        ps_all_th_corr = ps_all_th.copy()
+        for n1, n2, spec in ps_all_th:
+            sv1, ar1 = n1.split("&")
+            sv2, ar2 = n2.split("&")
+            if spec[0] == "T":
+                ps_all_th_corr[n1, n2, spec] *= tf_dict[sv1, ar1][2:lmax]
+            if spec[1] == "T":
+                ps_all_th_corr[n1, n2, spec] *= tf_dict[sv2, ar2][2:lmax]
+        #print(ps_all_th.keys())
+        ###
         analytic_cov = so_cov.generalized_cov_spin0and2(coupling,
                                                         [na, nb, nc, nd],
                                                         n_splits,
-                                                        ps_all_th,
+                                                        ps_all_th_corr,
                                                         nl_all_th,
                                                         lmax,
                                                         binning_file,
@@ -364,8 +374,29 @@ for i, ps1 in enumerate(spec_name_list):
             _, tf_sv_ar = pspy_utils.naive_binning(ell_tf, tf_dict[sv, ar], binning_file, lmax)
             tf *= tf_sv_ar
 
-        an_cov_dict[(na, nb), (nc, nd)] = analytic_cov_select * np.outer(np.sqrt(tf), np.sqrt(tf))
+        #an_cov_dict[(na, nb), (nc, nd)] = analytic_cov_select * np.outer(np.sqrt(tf), np.sqrt(tf))
+        an_cov_dict[(na, nb), (nc, nd)] = analytic_cov_select
 
+
+#### TEST analytic covariances ####
+for my_spec in spec_name_list:
+    mean_a, _, mc_cov = so_cov.mc_cov_from_spectra_list(ps_all[my_spec],
+                                                    ps_all[my_spec],
+                                                    spectra=spectra)
+    na, nb = my_spec.split("x")
+    mc_cov = so_cov.selectblock(mc_cov, spectra, n_bins, block = "TTTT")
+    an_cov = an_cov_dict[(na, nb), (na, nb)]
+
+    plt.figure()
+    plt.plot(lb, an_cov.diagonal(), label = "AN")
+    plt.plot(lb, mc_cov.diagonal(), label = "MC")
+    plt.legend()
+    plt.tight_layout()
+    plt.title(my_spec)
+    plt.show()
+###################################
+
+##############
 # We want to estimate the transfer function using a ratio of
 # two power spectra psA / psB
 ps_name = {"C1": {"A": ("sv1&ar1", "sv1&ar1"),
@@ -386,6 +417,13 @@ for iii in range(n_sims):
         psA = ps_all[f"{nameA_1}x{nameA_2}"][iii]["TT"]
         psB = ps_all[f"{nameB_1}x{nameB_2}"][iii]["TT"]
 
+        ### test ###
+        psA_th = ps_all_th[nameA_1, nameA_2, "TT"]
+        psB_th = ps_all_th[nameB_1, nameB_2, "TT"]
+        psA_th = pspy_utils.naive_binning(l_cmb, psA_th, binning_file, lmax)[1]
+        psB_th = pspy_utils.naive_binning(l_cmb, psB_th, binning_file, lmax)[1]
+        ############
+
         covAA = an_cov_dict[(nameA_1, nameA_2), (nameA_1, nameA_2)]
         covAB = an_cov_dict[(nameA_1, nameA_2), (nameB_1, nameB_2)]
         covBB = an_cov_dict[(nameB_1, nameB_2), (nameB_1, nameB_2)]
@@ -393,14 +431,16 @@ for iii in range(n_sims):
         # Select high SNR multipoles
         snr = pspy_utils.naive_binning(l_cmb, cmb_dict["TT"],
                                        binning_file, lmax)[1] / np.sqrt(covBB.diagonal())
-        id = np.where(snr >= 3)[0]
 
+        id = np.where(snr >= 4)[0]
+        print(f"Old {len(psA)}")
         psA, psB = psA[id], psB[id]
+        print(f"New {len(psA)}")
         covAA, covAB, covBB = covAA[np.ix_(id, id)], covAB[np.ix_(id, id)], covBB[np.ix_(id, id)]
         lb_tf = lb[id]
         tf_biased = psA / psB
         tf = tf_tools.get_tf_unbiased_estimator(psA, psB, covAB, covBB)
-        tf_cov = tf_tools.get_tf_estimator_covariance(psA, psB, covAA, covAB, covBB)
+        tf_cov = tf_tools.get_tf_estimator_covariance(psA_th[id], psB_th[id], covAA, covAB, covBB)
 
         tf_dict_out[comb]["tf"].append(tf)
         tf_dict_out[comb]["tf_biased"].append(tf_biased)
@@ -425,8 +465,8 @@ for comb in ps_name:
 
 
     plt.figure(figsize = (8, 6))
-    plt.plot(mean_analytical_tf_std, label = "AN")
-    plt.plot(mc_tf_std, label = "MC")
+    plt.plot(tf_dict_out[comb]["lb"][0], mean_analytical_tf_std, label = "AN")
+    plt.plot(tf_dict_out[comb]["lb"][0], mc_tf_std, label = "MC")
     plt.xlabel(r"$\ell$")
     plt.ylabel(r"$\sigma_{F_\ell}$")
     plt.legend(frameon = False)
