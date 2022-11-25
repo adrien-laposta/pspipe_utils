@@ -8,7 +8,7 @@ import numpy as np
 def get_arrays_list(dict):
     """This function creates the lists over which mpi is done
     when we parallelized over each arrays
-     
+
     Parameters
     ----------
     dict : dict
@@ -29,7 +29,7 @@ def get_arrays_list(dict):
 def get_spectra_list(dict):
     """This function creates the lists over which mpi is done
     when we parallelized over each spectra
-    
+
     Parameters
     ----------
     dict : dict
@@ -60,7 +60,7 @@ def get_spectra_list(dict):
 def get_covariances_list(dict):
     """This function creates the lists over which mpi is done
     when we parallelized over each covariance element
-    
+
     Parameters
     ----------
     dict : dict
@@ -82,12 +82,12 @@ def get_covariances_list(dict):
             nc_list += [nc]
             nd_list += [nd]
             ncovs += 1
-    
+
     return ncovs, na_list, nb_list, nc_list, nd_list
 
 def get_spec_name_list(dict, char="&", kind=None, freq_pair=None, remove_same_ar_and_sv=False, return_nueff=False):
     """This function creates a list with the name of all spectra we consider
- 
+
     Parameters
     ----------
     dict : dict
@@ -118,7 +118,7 @@ def get_spec_name_list(dict, char="&", kind=None, freq_pair=None, remove_same_ar
                     # This ensures that we do not repeat redundant computations
                     if  (id_sv1 == id_sv2) & (id_ar1 > id_ar2) : continue
                     if  (id_sv1 > id_sv2) : continue
-                
+
                     if (kind == "noise") or (kind == "auto"):
                         if (sv1 != sv2): continue
 
@@ -131,7 +131,7 @@ def get_spec_name_list(dict, char="&", kind=None, freq_pair=None, remove_same_ar
                         if (f1 != nu_eff1) or (f2 != nu_eff2): c +=1
                         if (f2 != nu_eff1) or (f1 != nu_eff2): c +=1
                     if c == 2: continue
-                
+
                     if remove_same_ar_and_sv == True:
                         if (sv1 == sv2) & (ar1 == ar2): continue
 
@@ -145,7 +145,7 @@ def get_spec_name_list(dict, char="&", kind=None, freq_pair=None, remove_same_ar
 
 def get_freq_list(dict):
     """This function creates the list of all frequencies to consider
-     
+
     Parameters
     ----------
     dict : dict
@@ -161,19 +161,19 @@ def get_freq_list(dict):
 
     # remove doublons
     freq_list = np.sort(list(dict.fromkeys(freq_list)))
-    
+
     return freq_list
 
 
 def x_ar_cov_order(spec_name_list,
                    spectra_order = ["TT", "TE", "ET", "EE"]):
-                   
+
     """This function creates the list of spectra that enters
     the cross array covariance matrix.
     Note that ET, BT, and BE are removed for spectra of the type "dr6_pa4_f150xdr6_pa4_f150"
     where the are kept in the case "dr6_pa4_f150xdr6_pa5_f150", its because TE=ET in the former
     case
-    
+
     Parameters
     ----------
     spec_name_list: list of str
@@ -188,17 +188,17 @@ def x_ar_cov_order(spec_name_list,
             na, nb = spec_name.split("x")
             if (spec == "ET" or spec == "BT" or spec == "BE") & (na == nb): continue
             x_ar_list += [f"{spec}_{spec_name}"]
-            
+
     return x_ar_list
 
 
 def x_freq_cov_order(freq_list,
                      spectra_order = ["TT", "TE", "EE"]):
-                     
-                     
+
+
     """This function creates the list of spectra that enters
     the cross frequency covariance matrix.
-    
+
     Parameters
     ----------
     freq_list: list of str
@@ -211,7 +211,7 @@ def x_freq_cov_order(freq_list,
             raise ValueError("spectra_order can not contain [ET, BT, BE] the cross freq cov matrix convention is to assign all ET, BT, BE into TE,TB,EB")
 
     x_freq_list = []
-    
+
     for spec in spectra_order:
         if spec[0] == spec[1]:
             x_freq_list += [f"{spec}_{f0}x{f1}" for f0, f1 in cwr(freq_list, 2)]
@@ -219,3 +219,25 @@ def x_freq_cov_order(freq_list,
             x_freq_list +=  [f"{spec}_{f0}x{f1}" for f0, f1 in product(freq_list, freq_list)]
 
     return x_freq_list
+
+def get_array_nulls_list(d):
+
+    surveys = d["surveys"]
+    arrays = {sv: d[f"arrays_{sv}"] for sv in surveys}
+
+    array_nulls_list = []
+
+    for sv in surveys:
+
+        for i, (ar1, ar2) in enumerate(cwr(arrays[sv], 2)):
+            for j, (ar3, ar4) in enumerate(cwr(arrays[sv], 2)):
+                if i >= j: continue
+
+                array_null = (f"{sv}_{ar1}", f"{sv}_{ar2}", f"{sv}_{ar3}", f"{sv}_{ar4}")
+                nus = {ar: d[f"nu_eff_{ar}"] for ar in array_null}
+
+                if nus[f"{sv}_{ar1}"] != nus[f"{sv}_{ar3}"] or nus[f"{sv}_{ar2}"] != nus[f"{sv}_{ar4}"]: continue
+
+                array_nulls_list.append(array_null)
+
+    return array_nulls_list
