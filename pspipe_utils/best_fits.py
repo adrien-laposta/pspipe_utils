@@ -185,19 +185,19 @@ def get_all_best_fit(spec_name_list,
 
         for spec in spectra:
 
-            ps_all_th[f"{sv_a}&{ar_a}",f"{sv_b}&{ar_b}", spec] =  cmb_dict[spec] + fg_dict[f"{sv_a}_{ar_a}", f"{sv_b}_{ar_b}"][spec]
+            ps_all_th[na, nb, spec] =  cmb_dict[spec] + fg_dict[f"{sv_a}_{ar_a}", f"{sv_b}_{ar_b}"][spec]
             if bl_dict is not None:
-                ps_all_th[f"{sv_a}&{ar_a}", f"{sv_b}&{ar_b}", spec]  *= bl_dict[sv_a, ar_a] * bl_dict[sv_b, ar_b]
+                ps_all_th[na, nb, spec]  *= bl_dict[sv_a, ar_a] * bl_dict[sv_b, ar_b]
 
-            ps_all_th[f"{sv_b}&{ar_b}",f"{sv_a}&{ar_a}", spec]  = ps_all_th[f"{sv_a}&{ar_a}",f"{sv_b}&{ar_b}", spec]
+            ps_all_th[nb, na, spec]  = ps_all_th[na, nb, spec]
 
             if nl_dict is not None:
                 if (sv_a == sv_b):
-                    nl_all_th[f"{sv_a}&{ar_a}",f"{sv_b}&{ar_b}", spec]  = nl_dict[sv_a, ar_a, ar_b][spec]
+                    nl_all_th[na, nb, spec]  = nl_dict[sv_a, ar_a, ar_b][spec]
                 else:
-                    nl_all_th[f"{sv_a}&{ar_a}",f"{sv_b}&{ar_b}", spec]  = 0
+                    nl_all_th[na, nb, spec]  = 0
 
-                nl_all_th[f"{sv_b}&{ar_b}",f"{sv_a}&{ar_a}", spec]  = nl_all_th[f"{sv_a}&{ar_a}",f"{sv_b}&{ar_b}", spec]
+                nl_all_th[nb, na, spec]  = nl_all_th[na, nb, spec]
 
     if nl_dict is not None:
         return l_th, ps_all_th, nl_all_th
