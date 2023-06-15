@@ -14,8 +14,6 @@ lmax = 2000
 bin_size = 40
 n_sims = 100
 
-n_splits_dr6 = 2
-
 passband_dir = "tuto_data/passbands/"
 bandwidth_dr6_ar1 = 30
 bandwidth_dr6_ar2 = 30
