@@ -179,6 +179,7 @@ def plot_residual(lb,
     expected_res: float
       Expected value for the residual
       ex: 0 for ps differences and 1 for a ratio of two ps
+    return_chi2: bool
     """
     colors = ["#ebac23", "#b80058", "#008cf9"]
 
@@ -341,6 +342,7 @@ def get_ps_and_cov_dict(ar_list,
     cov_template: str
         Template for the name of the covariance files
         ex : "covariances/analytic_cov_{}x{}_{}x{}.npy"
+    skip_auto: bool
     """
     spectra = ["TT", "TE", "TB", "ET", "BT", "EE", "EB", "BE", "EE"]
 
