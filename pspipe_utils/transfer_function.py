@@ -8,7 +8,10 @@ import healpy as hp
 
 
 
-def deconvolve_xtra_tf(lb, ps, spectra, xtra_pw1=None, xtra_pw2=None, mm_tf1=None, mm_tf2=None):
+def deconvolve_xtra_tf(lb, ps, spectra,
+                       xtra_pw1=None, xtra_pw2=None,
+                       mm_tf1=None, mm_tf2=None;
+                       beam_corr1=None, beam_corr2=None):
     """
     this function deconvolve an xtra transfer function (beyond the kspace filter one)
     it included possibly pixwin and map maker transfer function
@@ -28,7 +31,10 @@ def deconvolve_xtra_tf(lb, ps, spectra, xtra_pw1=None, xtra_pw2=None, mm_tf1=Non
         a map maker transfer function
     mm_tf2: dict of 1d array
         a map maker transfer function
-
+    beam_corr1: 1d array
+        beam correction (e.g. to account for per split beams)
+    beam_corr2: 1d array
+        beam correction (e.g. to account for per split beams)
     """
 
     for spec in spectra:
@@ -40,4 +46,8 @@ def deconvolve_xtra_tf(lb, ps, spectra, xtra_pw1=None, xtra_pw2=None, mm_tf1=Non
             ps[spec] /= mm_tf1[spec]
         if mm_tf2 is not None:
             ps[spec] /= mm_tf2[spec]
+        if beam_corr1 is not None:
+            ps[spec] *= beam_corr1
+        if beam_corr2 is not None:
+            ps[spec] *= beam_corr2
     return lb, ps
