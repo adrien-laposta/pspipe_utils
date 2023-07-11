@@ -155,7 +155,8 @@ def plot_residual(lb,
                   lrange = None,
                   l_pow = 0,
                   overplot_theory_lines = None,
-                  expected_res = 0.):
+                  expected_res = 0.,
+                  return_chi2=False):
     """
     Plot the residual power spectrum and
     save it at a png file
@@ -181,14 +182,24 @@ def plot_residual(lb,
     """
     colors = ["#ebac23", "#b80058", "#008cf9"]
 
+    if overplot_theory_lines:
+        lb_th, res_th = overplot_theory_lines
+        assert len(lb) == len(lb_th), "Mismatch between expected residual and data"
+    else:
+        res_th = np.ones(len(lb)) * expected_res
+
+    if return_chi2:
+        chi2_dict = {}
+
     plt.figure(figsize = (8, 6))
     plt.axhline(expected_res, color = "k", ls = "--")
     for i, (name, res_cov) in enumerate(res_cov_dict.items()):
+
         if lrange is not None:
-            chi2 = (res_spec[lrange] - expected_res) @ np.linalg.inv(res_cov[np.ix_(lrange, lrange)]) @ (res_spec[lrange] - expected_res)
+            chi2 = (res_spec[lrange] - res_th[lrange]) @ np.linalg.inv(res_cov[np.ix_(lrange, lrange)]) @ (res_spec[lrange] - res_th[lrange])
             ndof = len(lb[lrange])
         else:
-            chi2 = (res_spec - expected_res) @ np.linalg.inv(res_cov) @ (res_spec - expected_res)
+            chi2 = (res_spec - res_th) @ np.linalg.inv(res_cov) @ (res_spec - res_th)
             ndof = len(lb)
 
         print(res_cov.diagonal().shape, lb.shape, title, file_name)
@@ -197,6 +208,9 @@ def plot_residual(lb,
                      ls = "None", marker = ".", ecolor = colors[i],
                      color = "k",
                      label = f"{name} [$\chi^2 = {{{chi2:.1f}}}/{{{ndof}}}$]")
+
+        if return_chi2:
+            chi2_dict[name] = {"chi2": chi2, "ndof": ndof}
 
     if lrange is not None:
         xleft, xright = lb[lrange][0], lb[lrange][-1]
@@ -221,6 +235,9 @@ def plot_residual(lb,
     plt.savefig(f"{file_name}.png", dpi = 300)
     plt.clf()
     plt.close()
+
+    if return_chi2:
+        return chi2_dict
 
 def get_calibration_amplitudes(spectra_vec,
                                full_cov,
@@ -307,7 +324,9 @@ def get_calibration_amplitudes(spectra_vec,
 
 def get_ps_and_cov_dict(ar_list,
                         ps_template,
-                        cov_template):
+                        cov_template,
+                        spectra_order=["TT", "TE", "ET", "EE"],
+                        skip_auto=False):
     """
     Load power spectra and covariances for
     arrays listed in `ar_list`.
@@ -323,14 +342,13 @@ def get_ps_and_cov_dict(ar_list,
         Template for the name of the covariance files
         ex : "covariances/analytic_cov_{}x{}_{}x{}.npy"
     """
+    spectra = ["TT", "TE", "TB", "ET", "BT", "EE", "EB", "BE", "EE"]
+
     ps_dict = {}
     cov_dict = {}
 
-    spectra = ["TT", "TE", "TB", "ET", "BT", "EE", "EB", "BE", "BB"]
-    modes = ["TT", "TE", "ET", "EE"]
-
     for i, (ar1, ar2) in enumerate(cwr(ar_list, 2)):
-
+        if skip_auto and (ar1==ar2): continue
         try:
             tuple_name1 = (ar1, ar2)
             ps_file = ps_template.format(*tuple_name1)
@@ -340,9 +358,10 @@ def get_ps_and_cov_dict(ar_list,
             ps_file = ps_template.format(*tuple_name1)
             lb, ps = so_spectra.read_ps(ps_file, spectra = spectra)
 
-        ps_dict = {**ps_dict, **{(*tuple_name1, m): ps[m] for m in modes}}
+        ps_dict = {**ps_dict, **{(*tuple_name1, m): ps[m] for m in spectra_order}}
 
         for j, (ar3, ar4) in enumerate(cwr(ar_list, 2)):
+            if skip_auto and (ar3==ar4): continue
             if i < j: continue
 
             try:
@@ -366,9 +385,9 @@ def get_ps_and_cov_dict(ar_list,
                     cov_file = cov_template.format(*tuple_name2, *tuple_name1)
                     cov = np.load(cov_file)
             t1, t2 = tuple_order
-            for m1, m2 in cwr(modes, 2):
+            for m1, m2 in cwr(spectra_order, 2):
 
-                cov_dict[(*t1, m1), (*t2, m2)] = so_cov.selectblock(cov, modes, n_bins=len(lb), block = m1+m2)
+                cov_dict[(*t1, m1), (*t2, m2)] = so_cov.selectblock(cov, spectra_order, n_bins=len(lb), block = m1+m2)
 
     ps_dict["ell"] = lb
 
