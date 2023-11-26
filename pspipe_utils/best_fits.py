@@ -208,10 +208,15 @@ def get_all_best_fit(spec_name_list, l_th, cmb_dict, fg_dict, spectra, delimiter
 
             if bl_dict is not None:
                 X, Y = spec
-                ps_all_th[ms_a, ms_b, spec] *=  bl_dict[sv_a, ar_a][X] * bl_dict[sv_b, ar_b][Y]
+                if len(list(bl_dict.keys())[0]) == 2:
+                    bl_a, bl_b = bl_dict[sv_a, ar_a], bl_dict[sv_b, ar_b]
+                else:
+                    bl_a, bl_b = bl_dict[sv_a, ar_a, split_a], bl_dict[sv_b, ar_b, split_b]
+
+                ps_all_th[ms_a, ms_b, spec] *=  bl_a[X] * bl_b[Y]
                 if ms_a != ms_b:
                     # the if avoid a repetition in the case ms_a == ms_b
-                    ps_all_th[ms_b, ms_a, spec] *= bl_dict[sv_b, ar_b][X] * bl_dict[sv_a, ar_a][Y]
+                    ps_all_th[ms_b, ms_a, spec] *= bl_b[X] * bl_a[Y]
 
             if nl_dict is not None:
                 if sv_a == sv_b:

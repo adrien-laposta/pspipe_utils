@@ -59,3 +59,44 @@ def apply_beams(alms, bl):
     for i, f in enumerate(["T", "E", "B"]):
         alms[i] = curvedsky.almxfl(alms[i], bl[f])
     return alms
+
+def get_split_beam_fnames(f_name_beam_T, f_name_beam_pol, survey, id_split):
+    """
+    Handles the different naming conventions of DR6 and Planck
+    per-split beams.
+
+    Parameters
+    __________
+    f_name_beam_T: string
+        the filename of the temperature beam file (coadd)
+    f_name_beam_pol: string
+        the filename of the polarisation beam file (coadd)
+    survey: string
+        the name of the survey -should be either "Planck" or "dr6"
+    id_split: integer
+        the id of the split
+
+    Returns
+    _______
+    split_beam_T_fname: string
+        the filename of the temperature beam file (split)
+    split_beam_pol_fname: string
+        the filename of the polarisation beam file (split)
+    """
+    if survey == "Planck":
+        split_name = ["A", "B"][id_split]
+        split_beam_T_fname = str_replace(
+            f_name_beam_T, "_mean.dat", f"{split_name}.dat"
+        )
+        split_beam_pol_fname = str_replace(
+            f_name_beam_pol, "_mean.dat", f"{split_name}.dat"
+        )
+    elif survey == "dr6":
+        split_beam_T_fname = str_replace(
+            f_name_beam_T, "coadd", f"set{id_split}"
+        )
+        split_beam_pol_fname = str_replace(
+            f_name_beam_pol, "coadd", f"set{id_split}"
+        )
+    return split_beam_T_fname, split_beam_pol_fname
+
